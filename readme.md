@@ -65,7 +65,7 @@ A Bitcoin Cash Payment URI is:
 A non-normative summary of the payment URI syntax:
 
 ```
-bitcoin[cash]:[address][?[t][&s=<satoshis>][&m=<message>][&r=<request_url>][&c=<category_hex>][&f=<fungible_token_amount>][&n=<nft_commitment_hex>][&[req-]<param>=<value>]]
+bitcoin[cash]:[address][?[t][&s=<satoshis>][&e=<expiration_timestamp>][&m=<message>][&r=<request_url>][&c=<category_hex>][&f=<fungible_token_amount>][&n=<nft_commitment_hex>][&<param>=<value>]]
 ```
 
 Compatibility with [BIP21](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki) is also supported:
@@ -94,7 +94,6 @@ In further detail:
 | `t`                  | The receiver can safely receive CashTokens. Implied by CashToken-supporting [v2 and v3 CashAddresses](https://cashtokens.org/docs/spec/chip#cashaddress-token-support); the `t` parameter has no additional impact on URIs with CashToken-supporting addresses.                                                                                                                                                                                     |                                                                                                                                                                                                                                            |
 | **BIP21 Parameters** |
 | `<custom>`           | An unknown, custom parameter that implementations can safely ignore.                                                                                                                                                                                                                                                                                                                                                                                |                                                                                                                                                                                                                                            |
-| `req-<custom>`       | An unknown, custom parameter (prefixed with `req-`) that must not be ignored.                                                                                                                                                                                                                                                                                                                                                                       | Error if not handled by a supported standard.                                                                                                                                                                                              |
 | `amount`             | The requested amount in whole BCH, e.g. `amount=.00123456` is a request for `0.00123456 BCH`. Included for backwards-compatibility with BIP21, but the `s` parameter is recommended for applications not requiring BIP21 compatibility. (See [Inclusion of `s` parameter](#inclusion-of-s-parameter).)                                                                                                                                              | Error if `s` is also set.                                                                                                                                                                                                                  |
 | `message`            | Identical to `m`, included for backwards-compatibility with BIP21. Note that the [BIP21 `label` parameter is not supported](#exclusion-of-label-parameter).                                                                                                                                                                                                                                                                                         | Error if `m` is also set.                                                                                                                                                                                                                  |
 
@@ -160,7 +159,8 @@ The following examples demonstrate malformed payment URIs. For each, implementat
 | Error                                                             | URI                                                                                                                                           |
 | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | No address or request URL is provided.                            | `bitcoincash:?amount=1`                                                                                                                       |
-| Expiring request uses the deprecated `amount` parameter.          | `bitcoincash:?amount=1&e=1684152000`                                                                                                          |
+| No address or request URL is provided.                            | `bitcoincash:?s=1000`                                                                                                                         |
+| Expiring request uses the deprecated `amount` parameter.          | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?amount=1&e=1684152000`                                                                |
 | Both `s` and `amount` are set.                                    | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?s=123456&amount=.00123456`                                                            |
 | Both `m` and `message` are set.                                   | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?m=abc&message=abc`                                                                    |
 | Token request is missing a fungible amount and/or NFT commitment. | `bitcoincash:zr7fzmep8g7h7ymfxy74lgc0v950j3r295z4y4gq0v?c=0afd5f9ad130d043f627fad3b422ab17cfb5ff0fc69e4782eea7bd0853948428`                   |
@@ -170,7 +170,6 @@ The following examples demonstrate malformed payment URIs. For each, implementat
 | Token request is missing a token category.                        | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?f=10`                                                                                 |
 | Token request is missing a token category.                        | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?n=00`                                                                                 |
 | Token request is missing a token category.                        | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?n=00`                                                                                 |
-| Request requires an unknown parameter: `req-custom`.              | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?req-custom=value`                                                                     |
 
 </details>
 
@@ -181,9 +180,8 @@ Payment URI Alphanumeric Mode is defined to enable high-density encoding of paym
 1. Convert all characters to uppercase.
 2. Convert reserved characters to their alphanumeric mode equivalent:
    1. `?` becomes `:`,
-   2. `=` becomes `-`,
-   3. `&` becomes `+`, and
-   4. `req-` becomes `$`.
+   2. `=` becomes `-`, and
+   3. `&` becomes `+`.
 3. Optionally, instances of `%20` (space) and `%24` (`$`) may be decoded within `m`/`message` values for maximum compression.
 
 Use of alphanumeric mode is recommended for all QR-encoded payment URIs requesting tokens and for use cases in which BIP21 backwards-compatibility is not required.
@@ -201,7 +199,6 @@ Use of alphanumeric mode is recommended for all QR-encoded payment URIs requesti
 | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?s=1234`                                                                                      | `BITCOINCASH:QR7FZMEP8G7H7YMFXY74LGC0V950J3R2959LHTXXSL:SAT-1234`                                                                      |
 | `bitcoincash:zr7fzmep8g7h7ymfxy74lgc0v950j3r295z4y4gq0v?c=0afd5f9ad130d043f627fad3b422ab17cfb5ff0fc69e4782eea7bd0853948428&f=10000`                  | `BITCOINCASH:ZR7FZMEP8G7H7YMFXY74LGC0V950J3R295Z4Y4GQ0V:C-0AFD5F9AD130D043F627FAD3B422AB17CFB5FF0FC69E4782EEA7BD0853948428+F-10000`    |
 | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?s=1000&m=%54est%20at%20%41%43%4D%45%20%2810%25%20%46riends%20%26%20%46amily%20%44iscount%29` | `BITCOINCASH:QR7FZMEP8G7H7YMFXY74LGC0V950J3R2959LHTXXSL:S-1000+M-%54EST AT %41%43%4D%45 %2810%25 %46RIENDS %26 %46AMILY %44ISCOUNT%29` |
-| `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?req-custom=value`                                                                            | `BITCOINCASH:QR7FZMEP8G7H7YMFXY74LGC0V950J3R2959LHTXXSL:$CUSTOM-VALUE`                                                                 |
 
 </details>
 
@@ -300,7 +297,7 @@ Finally, most wallets can expect little overlap in real usage between BCH and BT
 
 ### Design of Payment URI Error Behavior
 
-This proposal strictly defines expected error behavior in parsing of payment URIs – unexpected conflicts are never ignored. This behavior minimizes subtle differences between implementations and maximizes flexibility for future standards: future standards can safely replace error behaviors without risk that non-supporting clients will partially-misinterpret the new standard. For the same reasons, the behavior of `req-` prefixed parameters is also preserved as defined by [BIP21](https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki).
+This proposal strictly defines expected error behavior in parsing of payment URIs – unexpected conflicts are never ignored. This behavior minimizes subtle differences between implementations and maximizes flexibility for future standards: future standards can safely replace error behaviors without risk that non-supporting clients will partially-misinterpret the new standard.
 
 ### Exclusion of Web Payment Request API
 
@@ -326,7 +323,8 @@ Thank you to [Jonas Lundqvist](https://github.com/jonas-lundqvist), [Tom Zander]
 This section summarizes the evolution of this document.
 
 - **Draft v1.0.0**
-  - Defined `e` (expiration) parameter
+  - Defined `e` (expiration) parameter ([#6](https://github.com/bitjson/chip-paypro/issues/6))
+  - Drop support for `req-` parameter prefix ([#1](https://github.com/bitjson/chip-paypro/issues/1))
   - Initial publication
 
 ## Copyright
