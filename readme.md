@@ -78,7 +78,7 @@ In further detail:
 
 - The URI scheme must be `bitcoincash` or `bitcoin` (see [Support for `bitcoin` URI scheme](#support-for-bitcoin-uri-scheme)).
 - The `address` is a Bitcoin Cash address in [CashAddress format](https://reference.cash/protocol/blockchain/encoding/cashaddr); if `address` is not provided, the `r` parameter (Request URL) is required.
-- Any number of optional query parameters may follow `?`, in any order, with each definition separated by `&`.
+- Any number of unique, optional query parameters may follow `?`, in any order, with each definition separated by `&`.
 
 #### Payment URI Parameters
 
@@ -114,7 +114,7 @@ In further detail:
  */
 const encodeMessage = (message) =>
   encodeURI(message).replace(
-    /[^A-Za-z0-9 $%*-\./:]|(?<!(?:%)|(?:%[A-F0-9]))[A-Z]/g,
+    /[^A-Za-z0-9 $%*\-\./:]|(?<!(?:%)|(?:%[A-F0-9]))[A-Z]/g,
     (char) => '%' + char.charCodeAt(0).toString(16).toUpperCase()
   );
 /**
@@ -143,12 +143,13 @@ The following examples demonstrate well-formed payment URIs.
 | v0 address, token support, message, expiration                       | `t`, `m` of `Tip for Bob at Venue`, expiration of `2022-11-15T12:00:00.000Z`                   | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?t&e=1668513600&m=%54ip%20for%20%42ob%20at%20%56enue`                                                 |
 | v2 address (implicit token support)                                  |                                                                                                | `bitcoincash:zr7fzmep8g7h7ymfxy74lgc0v950j3r295z4y4gq0v`                                                                                                     |
 | v2 address (implicit token support), web-safe URI                    |                                                                                                | `bitcoin:zr7fzmep8g7h7ymfxy74lgc0v950j3r295z4y4gq0v`                                                                                                         |
+| v2 address, satoshis                                                 | `s=123456`                                                                                     | `bitcoincash:zr7fzmep8g7h7ymfxy74lgc0v950j3r295z4y4gq0v?s=123456`                                                                                            |
 | v0 address, satoshis, expiration                                     | `s=123400`, expiration of `2023-05-15T12:00:00.000Z`                                           | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?s=123400&e=1684152000`                                                                               |
 | Payment Protocol-Only                                                | `r=example.com/pay/1234`                                                                       | `bitcoincash:?r=example.com/pay/1234`                                                                                                                        |
 | Payment Protocol-Only, web-safe URI                                  | `r=example.com/pay/1234`                                                                       | `bitcoin:?r=example.com/pay/1234`                                                                                                                            |
 | Payment Protocol; falls back to v0 address, BIP21 amount             | `r=example.com/pay/1234`, `amount=.001234`                                                     | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?amount=.001234&r=example.com/pay/1234`                                                               |
 | Payment Protocol; falls back to v0 address, satoshis, and expiration | `r=example.com/pay/1234`, `s=123400`, expiration of `2023-05-15T12:00:00.000Z`                 | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?s=123400&e=1684152000&r=example.com/pay/1234`                                                        |
-| Payment Protocol; falls back to v0 address, token support, message   | `r=example.com/tip/1234`, `t`, `m` of `Tip for Bob at Venue`                                   | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?r=example.com/tip/1234&t&m=%54ip%20for%20%42ob%20at%20%56enue`                                       |
+| Payment Protocol; falls back to v0 address, token support, message   | `r=example.com/tip/1234`, `t`, `m` of `Tip for Bob, Venue`                                     | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?r=example.com/tip/1234&t&m=%54ip%20for%20%42ob%2C%20%56enue`                                         |
 | v0 address, BIP21-compatible amount and message                      | `amount=1` (`1.00000000 BCH`), `message` of `Test at ACME (10% Friends & Family Discount)`     | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?amount=1&message=%54est%20at%20%41%43%4D%45%20%2810%25%20%46riends%20%26%20%46amily%20%44iscount%29` |
 | v0 address, satoshi amount and message                               | `s=12345` (`0.00012345 BCH`), `m` of `Multi\nLine\nMessage: T̶̀est`                              | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?s=12345&m=%4Dulti%0A%4Cine%0A%4Dessage%3A%20%54%CD%80%CC%B6est`                                      |
 | v2 address, 10,000 FT request, minimum satoshis                      | `c=0afd5f9ad130d043f627fad3b422ab17cfb5ff0fc69e4782eea7bd0853948428`,`f=10000`                 | `bitcoincash:zr7fzmep8g7h7ymfxy74lgc0v950j3r295z4y4gq0v?c=0afd5f9ad130d043f627fad3b422ab17cfb5ff0fc69e4782eea7bd0853948428&f=10000`                          |
@@ -164,6 +165,10 @@ The following examples demonstrate malformed payment URIs. For each, implementat
 | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | No address or request URL is provided.                            | `bitcoincash:?amount=1`                                                                                                                       |
 | No address or request URL is provided.                            | `bitcoincash:?s=1000`                                                                                                                         |
+| Request includes multiple instances of the `amount` parameter.    | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?amount=1&amount=1`                                                                    |
+| Request includes multiple instances of the `r` parameter.         | `bitcoincash:?r&r=example.com/pay/1234`                                                                                                       |
+| Request includes multiple instances of the `s` parameter.         | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?s=123456&s=123456`                                                                    |
+| Request includes multiple instances of the `f` parameter.         | `bitcoincash:zr7fzmep8g7h7ymfxy74lgc0v950j3r295z4y4gq0v?c=0afd5f9ad130d043f627fad3b422ab17cfb5ff0fc69e4782eea7bd0853948428&f=10000&f=1`       |
 | Token-accepting request requires a token-aware address.           | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?t&amount=1`                                                                           |
 | Token-accepting request requires a token-aware address.           | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?t&s=1000`                                                                             |
 | Token-accepting request requires a token-aware address.           | `bitcoincash:qr7fzmep8g7h7ymfxy74lgc0v950j3r2959lhtxxsl?t&c=0afd5f9ad130d043f627fad3b422ab17cfb5ff0fc69e4782eea7bd0853948428&f=10000`         |
@@ -333,6 +338,7 @@ This section summarizes the evolution of this document.
   - Initial publication
   - Dropped support for `req-` parameter prefix ([#1](https://github.com/bitjson/chip-paypro/issues/1))
   - Restricted use of `t` to reasonable cases ([#2](https://github.com/bitjson/chip-paypro/issues/2))
+  - Prevented inclusion of duplicate parameters ([#3](https://github.com/bitjson/chip-paypro/issues/3))
   - Defined `e` (expiration) parameter ([#6](https://github.com/bitjson/chip-paypro/issues/6))
 
 ## Copyright
